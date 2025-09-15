@@ -3,12 +3,14 @@ import geoip from 'geoip-lite';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
+
+// Создаём новый экземпляр бота локально для этой функции
 const bot = new Telegraf(BOT_TOKEN);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const body = await json(req);
+  const body = await parseJson(req);
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const geo = geoip.lookup(ip);
 
@@ -29,8 +31,7 @@ Fingerprint: ${body.fingerprint}
   res.status(200).json({ status: 'ok' });
 }
 
-// Helper для парсинга JSON
-async function json(req) {
+async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk.toString());

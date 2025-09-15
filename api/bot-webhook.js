@@ -18,7 +18,7 @@ bot.start((ctx) => {
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
-      const body = await json(req);
+      const body = await parseJson(req);
       await bot.handleUpdate(body);
       res.status(200).send('OK');
     } catch (err) {
@@ -30,8 +30,7 @@ export default async function handler(req, res) {
   }
 }
 
-// Helper для парсинга JSON
-async function json(req) {
+async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
