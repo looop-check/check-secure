@@ -6,7 +6,7 @@ const TelegramBot = require('node-telegram-bot-api');
 // --- Настройки ---
 const BOT_TOKEN = process.env.BOT_TOKEN || 'ВАШ_ТОКЕН_ОТ_BOTFATHER';
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID || 'ID_ЧАТА_ПРОДАВЦА';
-const WEBAPP_URL = 'https://твоя-версел-ссылка.vercel.app';
+const WEBAPP_URL = 'https://check-secure.vercel.app';
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
