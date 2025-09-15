@@ -10,7 +10,7 @@ bot.start((ctx) => {
   ctx.reply('Привет! Для продолжения нажми кнопку ниже:', {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Открыть WebApp', web_app: { url: 'https://check-secure.vercel.vercel.app/index.html' } }]
+        [{ text: 'Открыть WebApp', web_app: { url: 'https://check-secure.vercel.app/index.html' } }]
       ]
     }
   });
