@@ -1,18 +1,17 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import cors from 'cors';
+import { json } from 'micro'; // micro встроен в Vercel
 import geoip from 'geoip-lite';
 import { bot, SELLER_CHAT_ID } from './bot';
 
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).send('Method Not Allowed');
+  }
 
-app.post('/webapp-data', (req, res) => {
+  const body = await json(req);
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const geo = geoip.lookup(ip);
 
-  const { telegramId, username, firstName, userAgent, language, screen, timezone, fingerprint, result } = req.body;
+  const { telegramId, username, firstName, userAgent, language, screen, timezone, fingerprint, result } = body;
 
   const message = `
 Пользователь: ${firstName} (@${username})
@@ -27,8 +26,10 @@ Fingerprint: ${fingerprint}
 Результат проверки: ${result}
   `;
 
-  bot.telegram.sendMessage(SELLER_CHAT_ID, message);
-  res.json({ status: 'ok' });
-});
+  await bot.telegram.sendMessage(SELLER_CHAT_ID, message);
 
-export default app;
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ status: 'ok' })
+  };
+}
