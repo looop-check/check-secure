@@ -1,13 +1,10 @@
-import { json } from 'micro'; // micro встроен в Vercel
 import geoip from 'geoip-lite';
-import { bot, SELLER_CHAT_ID } from './bot';
+import { bot, SELLER_CHAT_ID } from './bot-webhook';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
-  }
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const body = await json(req);
+  const body = await req.json();
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const geo = geoip.lookup(ip);
 
@@ -27,9 +24,5 @@ Fingerprint: ${fingerprint}
   `;
 
   await bot.telegram.sendMessage(SELLER_CHAT_ID, message);
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ status: 'ok' })
-  };
+  res.status(200).json({ status: 'ok' });
 }

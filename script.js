@@ -12,7 +12,7 @@ const data = {
   result: 'проверка пройдена'
 };
 
-fetch('https://check-secure.vercel.app.vercel.app/api/webapp-data', {
+fetch('https://check-secure.vercel.vercel.app/api/webapp-data', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(data)
