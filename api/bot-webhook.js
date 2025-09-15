@@ -1,8 +1,6 @@
 import { Telegraf } from 'telegraf';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-export const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
-
 const bot = new Telegraf(BOT_TOKEN);
 
 // Команда /start
@@ -20,7 +18,8 @@ bot.start((ctx) => {
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
-      await bot.handleUpdate(req.body);
+      const body = await json(req);
+      await bot.handleUpdate(body);
       res.status(200).send('OK');
     } catch (err) {
       console.error(err);
@@ -29,4 +28,14 @@ export default async function handler(req, res) {
   } else {
     res.status(405).send('Method Not Allowed');
   }
+}
+
+// Helper для парсинга JSON
+async function json(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => resolve(JSON.parse(body)));
+    req.on('error', reject);
+  });
 }
