@@ -1,19 +1,12 @@
 {
   "name": "checkbot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
+    "telegraf": "^0.64.0",
+    "geoip-lite": "^1.4.10",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "node-telegram-bot-api": "^0.66.0"
+    "express": "^5.1.0"
   }
 }
