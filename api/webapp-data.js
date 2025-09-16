@@ -1,45 +1,53 @@
-import { Telegraf } from 'telegraf';
+import { bot, SELLER_CHAT_ID } from './bot-webhook.js';
 import geoip from 'geoip-lite';
-import * as UAParser from 'ua-parser-js';
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
-
-const bot = new Telegraf(BOT_TOKEN);
+import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
   const body = await parseJson(req);
+
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const geo = geoip.lookup(ip);
 
-  const vpnWarning = geo && geo.timezone && geo.timezone !== body.timezone
-    ? '⚠ Пользователь может использовать VPN'
-    : '';
+  // Проверка VPN через VPNAPI
+  const vpnApiKey = process.env.VPNAPI_KEY;
+  let vpnWarning = '';
+  try {
+    const vpnRes = await fetch(`https://vpnapi.io/api/${ip}?key=${vpnApiKey}`);
+    const vpnData = await vpnRes.json();
+    if (vpnData.security && (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor)) {
+      vpnWarning = '⚠ Пользователь может использовать VPN/Proxy/Tor';
+    }
+  } catch (err) {
+    console.error('VPNAPI error:', err);
+  }
 
-  const parser = new UAParser.UAParser(body.userAgent);
-  const browserName = parser.getBrowser().name || 'неизвестно';
-  const osName = parser.getOS().name || 'неизвестно';
-
-  const allowedCountries = ['RU', 'BY', 'KZ'];
+  // Проверка страны
+  const allowedCountries = ['RU','BY','KZ'];
   const result = geo && allowedCountries.includes(geo.country) ? 'проверка пройдена' : 'не пройден';
 
   const message = `
 🟢 *Новый пользователь*
 
-🌍 *IP:* ${ip}
-📌 *Страна:* ${geo?.country || 'неизвестно'}
-🏙 *Регион:* ${geo?.region || 'неизвестно'}
-⏰ *Часовой пояс (браузер):* ${body.timezone}
+Telegram ID: ${body.telegramId || 'неизвестно'}
+Username: @${body.username || 'неизвестно'}
+Имя: ${body.firstName || 'неизвестно'}
+Фамилия: ${body.lastName || 'неизвестно'}
+
+🌍 IP: ${ip}
+📌 Страна: ${geo?.country || 'неизвестно'}
+🏙 Регион: ${geo?.region || 'неизвестно'}
+⏰ Часовой пояс (браузер): ${body.timezone}
 ${vpnWarning}
 
-🖥 *Браузер:* ${browserName}
-💻 *ОС:* ${osName}
-🌐 *Язык:* ${body.language || 'неизвестно'}
-📺 *Экран:* ${body.screen || 'неизвестно'}
-🔑 *Fingerprint (Цифровой отпечаток):* ${body.fingerprint || 'неизвестно'}
-✅ *Результат проверки:* ${result}
+🖥 Браузер: ${body.browser}
+💻 ОС: ${body.os}
+🌐 Язык: ${body.language || 'неизвестно'}
+📺 Экран: ${body.screen || 'неизвестно'}
+🔑 Fingerprint: ${body.fingerprint || 'неизвестно'}
+
+✅ Результат проверки: ${result}
 `;
 
   await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });

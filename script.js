@@ -1,18 +1,18 @@
-const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
 
 const data = {
   telegramId: tgUser.id,
   username: tgUser.username || '',
   firstName: tgUser.first_name || '',
   userAgent: navigator.userAgent,
+  browser: navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)?.[0] || 'неизвестно',
+  os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || 'неизвестно',
   language: navigator.language,
   screen: `${screen.width}x${screen.height}`,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  fingerprint: null,
-  result: 'проверка пройдена'
 };
 
-fetch('https://check-secure.vercel.app/api/webapp-data', {
+fetch('/api/webapp-data', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(data)

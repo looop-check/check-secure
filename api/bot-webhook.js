@@ -1,22 +1,28 @@
 import { Telegraf } from 'telegraf';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
+const WEBAPP_URL = 'https://your-project.vercel.app/webapp/index.html';
+
 const bot = new Telegraf(BOT_TOKEN);
 
+// /start
 bot.start((ctx) => {
   ctx.reply('Привет! Для продолжения нажми кнопку ниже:', {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Открыть WebApp', web_app: { url: 'https://check-secure.vercel.app/index.html' } }]
+        [{ text: 'Открыть WebApp', web_app: { url: WEBAPP_URL } }]
       ]
     }
   });
 });
 
+// Вебхук для Vercel
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
-      await bot.handleUpdate(req.body);
+      const body = await json(req);
+      await bot.handleUpdate(body);
       res.status(200).send('OK');
     } catch (err) {
       console.error(err);
@@ -26,3 +32,14 @@ export default async function handler(req, res) {
     res.status(405).send('Method Not Allowed');
   }
 }
+
+async function json(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => resolve(JSON.parse(body)));
+    req.on('error', reject);
+  });
+}
+
+export { bot, SELLER_CHAT_ID };
