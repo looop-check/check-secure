@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import bot from "./lib/bot.js";
 import geoip from "geoip-lite";
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
@@ -46,9 +46,6 @@ export default async function handler(req, res) {
       console.error("Ошибка VPNAPI:", e);
     }
 
-    const allowedCountries = ["RU","BY","KZ"];
-    const result = geo && allowedCountries.includes(country) ? "проверка пройдена" : "не пройден";
-
     const message = `
 🟢 *Новый пользователь*
 
@@ -64,8 +61,7 @@ ${vpnWarning}
 💻 ОС: ${os || "неизвестно"}
 🌐 Язык: ${language || "неизвестно"}
 📺 Экран: ${screen || "неизвестно"}
-⏰ Таймзона: ${timezone || "неизвестно"}
-✅ Результат проверки: ${result}
+⏰ Часовой пояс: ${timezone || "неизвестно"}
 `;
 
     await bot.telegram.sendMessage(process.env.SELLER_CHAT_ID, message, { parse_mode: "Markdown" });

@@ -5,7 +5,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const bot = new Telegraf(BOT_TOKEN);
 
 // Supabase
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // --- Команда /start ---
 bot.start(async (ctx) => {
