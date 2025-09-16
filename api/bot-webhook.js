@@ -62,9 +62,9 @@ export default async function handler(req, res) {
         
         const { vpn, proxy, tor } = vpnData.security || {};
 
-        if (vpn) vpnWarning = "⚠ VPN";
-        else if (proxy) vpnWarning = "⚠ Proxy";
-        else if (tor) vpnWarning = "⚠ Tor";
+        if (vpn) vpnWarning = "⚠ Использует VPN";
+        else if (proxy) vpnWarning = "⚠ Использует Proxy";
+        else if (tor) vpnWarning = "⚠ Использует Tor";
 
       } catch (e) {
         console.error("VPNAPI error:", e);
@@ -113,3 +113,4 @@ async function parseJson(req) {
     req.on("error", reject);
   });
 }
+
