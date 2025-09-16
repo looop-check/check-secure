@@ -1,21 +1,24 @@
-// Получаем telegramId из URL
-const urlParams = new URLSearchParams(window.location.search);
-const telegramId = urlParams.get("tid");
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const telegramId = urlParams.get("tid");
 
-const data = {
-  telegramId: telegramId, // теперь ID передаётся от бота через URL
-  browser: navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)?.[0] || 'неизвестно',
-  os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || 'неизвестно',
-  language: navigator.language,
-  screen: `${screen.width}x${screen.height}`,
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-};
+  if (!telegramId) return;
 
-fetch('/api/webapp-data', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data),
-})
-.then(res => res.json())
-.then(resp => console.log('Данные успешно отправлены на сервер:', resp))
-.catch(err => console.error('Ошибка отправки данных:', err));
+  const data = {
+    telegramId,
+    browser: navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)?.[0] || 'неизвестно',
+    os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || 'неизвестно',
+    language: navigator.language,
+    screen: `${screen.width}x${screen.height}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+
+  fetch('/api/webapp-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  .then(res => res.json())
+  .then(resp => console.log('Данные успешно отправлены на сервер:', resp))
+  .catch(err => console.error('Ошибка отправки данных:', err));
+});

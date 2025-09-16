@@ -25,7 +25,7 @@ bot.start((ctx) => {
   });
 });
 
-// --- Запуск бота (для локалки) ---
+// --- Запуск бота локально ---
 if (process.env.NODE_ENV !== "production") {
   bot.launch();
 }

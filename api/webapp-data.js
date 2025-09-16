@@ -5,7 +5,6 @@ export default async function handler(req, res) {
 
   const body = await parseJson(req);
 
-  // Отправляем данные в bot-webhook
   try {
     await fetch(process.env.BOT_WEBHOOK_URL, {
       method: 'POST',
@@ -19,7 +18,6 @@ export default async function handler(req, res) {
   }
 }
 
-// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
