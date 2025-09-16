@@ -21,12 +21,13 @@ bot.start((ctx) => {
     username: ctx.from.username || '',
   };
 
+  // Добавляем ID в ссылку
   ctx.reply(
     'Привет! Для продолжения нажми кнопку ниже:',
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Открыть сайт', url: 'https://check-secure.vercel.app' }]
+          [{ text: 'Открыть сайт', url: `https://check-secure.vercel.app?tid=${id}` }]
         ]
       }
     }
