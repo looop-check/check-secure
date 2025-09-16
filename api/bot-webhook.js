@@ -8,55 +8,63 @@ const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Временное хранилище пользователей
-const users = {};
-
+// --- Команда /start ---
 bot.start((ctx) => {
-  const user = ctx.from;
-  users[user.id] = {
-    id: user.id,
-    username: user.username || '',
-    firstName: user.first_name || '',
-  };
-
-  ctx.reply('Привет! Данные будут проверяться для безопасности.');
+  ctx.reply('Привет! Начинаем проверку...');
+  // Можно собрать tg данные сразу
 });
 
+// --- Временный хранилище пользователей ---
+const users = {};
+
+// --- Записываем данные о пользователе ---
+bot.on('message', (ctx) => {
+  const id = ctx.from.id;
+  users[id] = {
+    username: ctx.from.username || '',
+    firstName: ctx.from.first_name || ''
+  };
+});
+
+// --- Webhook handler для Vercel ---
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const body = await parseJson(req);
-
-  // Telegram-инфо
-  const tgData = users[body.telegramId] || { username: '', firstName: '' };
-
-  // IP и гео
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const geo = geoip.lookup(ip);
-
-  // Проверка VPN/Proxy/Tor через VPNAPI
-  let vpnWarning = '';
-  let isp = geo?.isp || 'неизвестно';
-
   try {
-    const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`);
-    const vpnData = await vpnResp.json();
+    const body = await parseJson(req);
 
-    if (vpnData.security) {
-      isp = vpnData.network?.autonomous_system_organization || isp;
+    // Telegram данные
+    const tgData = users[body.telegramId] || { username: '', firstName: '' };
 
-      if (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor) {
-        vpnWarning = '⚠ Пользователь использует VPN/Proxy/Tor';
+    // IP и гео
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const geo = geoip.lookup(ip);
+
+    // VPN/ISP инфо через VPNAPI
+    let isp = 'неизвестно';
+    let vpnWarning = '';
+    try {
+      const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`);
+      const vpnData = await vpnResp.json();
+
+      if (vpnData.security) {
+        isp = vpnData.network?.autonomous_system_organization || isp;
+        if (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor) {
+          vpnWarning = '⚠ Пользователь использует VPN/Proxy/Tor';
+        }
       }
+    } catch (e) {
+      console.error('Ошибка VPNAPI:', e);
     }
-  } catch (e) {
-    console.error('Ошибка VPNAPI:', e);
-  }
 
-  const message = `
+    // Проверка страны
+    const allowedCountries = ['RU', 'BY', 'KZ'];
+    const result = geo && allowedCountries.includes(geo.country) ? 'проверка пройдена' : 'не пройден';
+
+    const message = `
 🟢 *Новый пользователь*
 
-👤 Telegram: ${tgData.firstName} ${tgData.lastName} (@${tgData.username})
+👤 Telegram: ${tgData.firstName || ''} ${tgData.lastName || ''} (@${tgData.username})
 🌍 IP: ${ip}
 📌 Страна: ${geo?.country || 'неизвестно'}
 🏙 Регион: ${geo?.region || 'неизвестно'}
@@ -68,13 +76,20 @@ ${vpnWarning}
 🌐 Язык: ${body.language || 'неизвестно'}
 📺 Экран: ${body.screen || 'неизвестно'}
 ⏰ Таймзона: ${body.timezone || 'неизвестно'}
+✅ Результат проверки: ${result}
 `;
 
-  await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
-  res.status(200).json({ status: 'ok' });
+    await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
+
+    res.status(200).json({ status: 'ok' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error');
+  }
 }
 
-// Парсинг JSON
+// --- Вспомогательная функция для парсинга JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
