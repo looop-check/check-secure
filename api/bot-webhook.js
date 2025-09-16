@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     const messageHtml = `
 <b>🟢 Новый пользователь</b>
 
-<b>👤 Telegram:</b> ${escapeHtml(tgData.first_name || "")} ${escapeHtml(tgData.last_name || "")} (${escapeHtml(tgData.username || "нет")})
+<b>👤 Telegram:</b> ${escapeHtml(tgData.first_name || "")} ${escapeHtml(tgData.last_name || "")} (@${escapeHtml(tgData.username || "нет")})
 <b>🆔 ID:</b> ${escapeHtml(String(telegramId))}
 
 <b>🌍 IP:</b> ${escapeHtml(ip)}
@@ -81,11 +81,9 @@ export default async function handler(req, res) {
 <b>🏢 Провайдер:</b> ${escapeHtml(isp)}
 ${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
 
-<b>🖥 Браузер:</b> ${escapeHtml(browser || "неизвестно")}
 <b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
 <b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
-<b>📺 Экран:</b> ${escapeHtml(screen || "неизвестно")}
-<b>⏰ Таймзона:</b> ${escapeHtml(timezone || "неизвестно")}
+<b>⏰ Часовой пояс:</b> ${escapeHtml(timezone || "неизвестно")}
 `;
 
     // Отправляем продавцу
