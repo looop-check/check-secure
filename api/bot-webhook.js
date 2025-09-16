@@ -1,26 +1,39 @@
 import fetch from "node-fetch";
 import geoip from "geoip-lite";
-import bot, { users } from "./lib/bot.js";
+import { createClient } from "@supabase/supabase-js";
+import bot from "./lib/bot.js";
 
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
 const VPNAPI_KEY = process.env.VPNAPI_KEY;
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
   try {
     const body = await parseJson(req);
+    const { telegramId, browser, os, language, screen, timezone } = body;
 
-    const tgData = users[body.telegramId];
-    if (!tgData) {
+    // Получаем данные пользователя из Supabase
+    const { data: tgData, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("telegram_id", telegramId)
+      .single();
+
+    if (error || !tgData) {
       return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
     }
 
     // IP и гео
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
     const geo = geoip.lookup(ip);
+    const country = geo?.country || "неизвестно";
+    const region = geo?.region || "неизвестно";
+    const city = geo?.city || "неизвестно";
 
-    // VPN/ISP инфо через VPNAPI
+    // VPN/ISP через VPNAPI
     let isp = "неизвестно";
     let vpnWarning = "";
     try {
@@ -36,25 +49,22 @@ export default async function handler(req, res) {
       console.error("Ошибка VPNAPI:", e);
     }
 
-    const allowedCountries = ["RU","BY","KZ"];
-    const result = geo && allowedCountries.includes(geo.country) ? "проверка пройдена" : "не пройден";
-
     const message = `
 🟢 *Новый пользователь*
 
-👤 Telegram: ${tgData.firstName} ${tgData.lastName} (@${tgData.username})
+👤 Telegram: ${tgData.first_name} ${tgData.last_name} (@${tgData.username})
 🌍 IP: ${ip}
-📌 Страна: ${geo?.country || "неизвестно"}
-🏙 Регион: ${geo?.region || "неизвестно"}
+📌 Страна: ${country}
+🏙 Регион: ${region}
+🏘 Город: ${city}
 🏢 Провайдер: ${isp}
 ${vpnWarning}
 
-🖥 Браузер: ${body.browser || "неизвестно"}
-💻 ОС: ${body.os || "неизвестно"}
-🌐 Язык: ${body.language || "неизвестно"}
-📺 Экран: ${body.screen || "неизвестно"}
-⏰ Таймзона: ${body.timezone || "неизвестно"}
-✅ Результат проверки: ${result}
+🖥 Браузер: ${browser || "неизвестно"}
+💻 ОС: ${os || "неизвестно"}
+🌐 Язык: ${language || "неизвестно"}
+📺 Экран: ${screen || "неизвестно"}
+⏰ Таймзона: ${timezone || "неизвестно"}
 `;
 
     await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: "Markdown" });
@@ -62,7 +72,7 @@ ${vpnWarning}
     res.status(200).json({ status: "ok" });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error");
+    res.status(500).json({ status: "error" });
   }
 }
 
