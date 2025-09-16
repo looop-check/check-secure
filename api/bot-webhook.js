@@ -2,7 +2,7 @@ import { Telegraf } from 'telegraf';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
-const WEBAPP_URL = 'https://check-secure.vercel.app/webapp/index.html';
+const WEBAPP_URL = 'https://check-secure.vercel.app/index.html';
 
 const bot = new Telegraf(BOT_TOKEN);
 
