@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import geoip from "geoip-lite";
-import bot, { users } from "../bot.js";
+import bot, { users } from "./lib/bot.js";
 
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
 const VPNAPI_KEY = process.env.VPNAPI_KEY;
