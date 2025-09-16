@@ -83,6 +83,7 @@ export default async function handler(req, res) {
 <b>🏙 Регион:</b> ${escapeHtml(region)}
 <b>🏘 Город:</b> ${escapeHtml(city)}
 <b>🏢 Провайдер:</b> ${escapeHtml(isp)}
+
 ${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
 <b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
 <b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
@@ -113,4 +114,5 @@ async function parseJson(req) {
     req.on("error", reject);
   });
 }
+
 
