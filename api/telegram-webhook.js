@@ -1,5 +1,5 @@
 // api/telegram-webhook.js
-import bot from "../lib/bot.js"; // путь к твоему файлу с telegraf bot
+import bot from "./lib/bot.js"; // путь к твоему файлу с telegraf bot
 // НЕ импортируй launch() в lib/bot.js для продакшна — там уже условие NODE_ENV !== 'production'
 
 export default async function handler(req, res) {
