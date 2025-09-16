@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
-import geoip from 'geoip-lite';
 import fetch from 'node-fetch';
+import geoip from 'geoip-lite';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
@@ -8,25 +8,29 @@ const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Хранилище Telegram пользователей ---
+// --- Хранилище пользователей ---
 const users = {};
 
 // --- Команда /start ---
 bot.start((ctx) => {
   const id = ctx.from.id;
   users[id] = {
-    username: ctx.from.username || '',
+    telegramId: id,
     firstName: ctx.from.first_name || '',
-    lastName: ctx.from.last_name || ''
+    lastName: ctx.from.last_name || '',
+    username: ctx.from.username || '',
   };
 
-  ctx.reply('Привет! Для продолжения проверки нажми кнопку ниже:', {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: 'Открыть сайт для проверки', url: 'https://check-secure.vercel.app' }]
-      ]
+  ctx.reply(
+    'Привет! Для продолжения нажми кнопку ниже:',
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Открыть сайт', url: 'https://check-secure.vercel.app' }]
+        ]
+      }
     }
-  });
+  );
 });
 
 // --- Webhook handler для Vercel ---
@@ -36,18 +40,14 @@ export default async function handler(req, res) {
   try {
     const body = await parseJson(req);
 
-    // Telegram данные
-    const tgData = users[body.telegramId] || { username: '', firstName: '', lastName: '' };
+    // Берём Telegram-данные пользователя
+    const tgData = users[body.telegramId] || { firstName: '', lastName: '', username: '' };
 
-    if (!tgData.firstName) {
-      return res.status(400).json({ error: 'Telegram данные не найдены' });
-    }
-
-    // --- IP и Geo ---
+    // IP и гео
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const geo = geoip.lookup(ip);
 
-    // --- VPN/ISP через VPNAPI ---
+    // VPN/ISP инфо через VPNAPI
     let isp = 'неизвестно';
     let vpnWarning = '';
     try {
@@ -61,10 +61,14 @@ export default async function handler(req, res) {
         }
       }
     } catch (e) {
-      console.error('VPNAPI error:', e);
+      console.error('Ошибка VPNAPI:', e);
     }
 
-    // --- Формируем сообщение ---
+    // Проверка страны
+    const allowedCountries = ['RU','BY','KZ'];
+    const result = geo && allowedCountries.includes(geo.country) ? 'проверка пройдена' : 'не пройден';
+
+    // Формируем сообщение
     const message = `
 🟢 *Новый пользователь*
 
@@ -80,6 +84,7 @@ ${vpnWarning}
 🌐 Язык: ${body.language || 'неизвестно'}
 📺 Экран: ${body.screen || 'неизвестно'}
 ⏰ Таймзона: ${body.timezone || 'неизвестно'}
+✅ Результат проверки: ${result}
 `;
 
     await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
@@ -92,7 +97,7 @@ ${vpnWarning}
   }
 }
 
-// --- JSON парсер ---
+// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';

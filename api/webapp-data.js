@@ -3,28 +3,23 @@ import fetch from 'node-fetch';
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
+  const body = await parseJson(req);
+
+  // Отправляем данные в bot-webhook
   try {
-    const body = await parseJson(req);
-
-    // IP автоматически берем с запроса
-    body.ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-
-    // Отправляем все в bot-webhook.js
     await fetch(process.env.BOT_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-
     res.status(200).json({ status: 'ok' });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error');
+  } catch (e) {
+    console.error('Ошибка отправки в bot-webhook:', e);
+    res.status(500).json({ status: 'error' });
   }
 }
 
-// --- JSON парсер ---
+// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
