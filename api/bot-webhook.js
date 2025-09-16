@@ -11,12 +11,14 @@ export default async function handler(req, res) {
   try {
     const body = await parseJson(req);
 
-    // Данные Telegram из памяти бота
+    // Берём Telegram-данные пользователя
     const tgData = users[body.telegramId] || { firstName: "", lastName: "", username: "" };
 
+    // IP и гео
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
     const geo = geoip.lookup(ip);
 
+    // VPN/ISP инфо через VPNAPI
     let isp = "неизвестно";
     let vpnWarning = "";
     try {
@@ -33,9 +35,11 @@ export default async function handler(req, res) {
       console.error("Ошибка VPNAPI:", e);
     }
 
+    // Проверка страны
     const allowedCountries = ["RU", "BY", "KZ"];
     const result = geo && allowedCountries.includes(geo.country) ? "проверка пройдена" : "не пройден";
 
+    // Формируем сообщение
     const message = `
 🟢 *Новый пользователь*
 
@@ -63,6 +67,7 @@ ${vpnWarning}
   }
 }
 
+// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = "";
