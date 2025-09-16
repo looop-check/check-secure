@@ -1,5 +1,6 @@
+// Здесь telegramId вставляется через куки или форму, после того как пользователь написал боту /start
 const data = {
-  telegramId: null, // сюда вставить ID из куки/формы если есть
+  telegramId: null, // <-- ID Telegram пользователя
   browser: navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)?.[0] || 'неизвестно',
   os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || 'неизвестно',
   language: navigator.language,

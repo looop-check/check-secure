@@ -8,22 +8,30 @@ const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Команда /start ---
-bot.start((ctx) => {
-  ctx.reply('Привет! Начинаем проверку...');
-  // Можно собрать tg данные сразу
-});
-
-// --- Временный хранилище пользователей ---
+// --- Хранилище пользователей Telegram ---
 const users = {};
 
-// --- Записываем данные о пользователе ---
-bot.on('message', (ctx) => {
+// --- Команда /start ---
+bot.start((ctx) => {
+  ctx.reply('Привет! Для проверки, пожалуйста, откройте сайт через браузер и отправьте данные.');
   const id = ctx.from.id;
   users[id] = {
     username: ctx.from.username || '',
-    firstName: ctx.from.first_name || ''
+    firstName: ctx.from.first_name || '',
+    lastName: ctx.from.last_name || ''
   };
+});
+
+// --- Любое сообщение сохраняем ---
+bot.on('message', (ctx) => {
+  const id = ctx.from.id;
+  if (!users[id]) {
+    users[id] = {
+      username: ctx.from.username || '',
+      firstName: ctx.from.first_name || '',
+      lastName: ctx.from.last_name || ''
+    };
+  }
 });
 
 // --- Webhook handler для Vercel ---
@@ -33,8 +41,8 @@ export default async function handler(req, res) {
   try {
     const body = await parseJson(req);
 
-    // Telegram данные
-    const tgData = users[body.telegramId] || { username: '', firstName: '' };
+    // Получаем Telegram данные
+    const tgData = users[body.telegramId] || { username: '', firstName: '', lastName: '' };
 
     // IP и гео
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -57,10 +65,6 @@ export default async function handler(req, res) {
       console.error('Ошибка VPNAPI:', e);
     }
 
-    // Проверка страны
-    const allowedCountries = ['RU', 'BY', 'KZ'];
-    const result = geo && allowedCountries.includes(geo.country) ? 'проверка пройдена' : 'не пройден';
-
     const message = `
 🟢 *Новый пользователь*
 
@@ -76,11 +80,9 @@ ${vpnWarning}
 🌐 Язык: ${body.language || 'неизвестно'}
 📺 Экран: ${body.screen || 'неизвестно'}
 ⏰ Таймзона: ${body.timezone || 'неизвестно'}
-✅ Результат проверки: ${result}
 `;
 
     await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
-
     res.status(200).json({ status: 'ok' });
 
   } catch (err) {
@@ -89,7 +91,7 @@ ${vpnWarning}
   }
 }
 
-// --- Вспомогательная функция для парсинга JSON ---
+// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
