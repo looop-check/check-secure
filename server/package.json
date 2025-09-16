@@ -1,0 +1,10 @@
+{
+  "name": "checkbot",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "telegraf": "^4.16.2",
+    "geoip-lite": "^1.4.10",
+    "node-fetch": "^3.3.2"
+  }
+}
