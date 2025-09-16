@@ -1,86 +1,114 @@
 import fetch from "node-fetch";
 import geoip from "geoip-lite";
 import { createClient } from "@supabase/supabase-js";
-import bot from "./lib/bot.js";
+import bot from "./lib/bot.js"; // поправил путь: api -> lib
 
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
 const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// helper
+function escapeHtml(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
   try {
     const body = await parseJson(req);
-    const { telegramId, browser, os, language, screen, timezone } = body;
+    const { telegramId, browser, os, language, screen, timezone } = body || {};
+
+    if (!telegramId) {
+      return res.status(400).json({ status: "error", message: "telegramId is required" });
+    }
 
     // Получаем данные пользователя из Supabase
     const { data: tgData, error } = await supabase
       .from("users")
-      .select("*")
-      .eq("telegram_id", telegramId)
+      .select("telegram_id, first_name, last_name, username")
+      .eq("telegram_id", String(telegramId))
       .single();
 
     if (error || !tgData) {
+      console.error("Supabase: telegramId not found", error);
       return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
     }
 
-    // IP и гео
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-    const geo = geoip.lookup(ip);
-    const country = geo?.country || "неизвестно";
-    const region = geo?.region || "неизвестно";
-    const city = geo?.city || "неизвестно";
+    // IP (на Vercel в x-forwarded-for)
+    const ipHeader = req.headers["x-forwarded-for"];
+    const ip = ipHeader ? ipHeader.split(",")[0].trim() : (req.socket && req.socket.remoteAddress) || "неизвестно";
 
-    // VPN/ISP через VPNAPI
+    // geo
+    const geo = geoip.lookup(ip) || {};
+    const country = geo.country || "неизвестно";
+    const region = geo.region || "неизвестно";
+    const city = geo.city || "неизвестно";
+
+    // VPN/ISP через vpnapi.io
     let isp = "неизвестно";
     let vpnWarning = "";
-    try {
-      const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`);
-      const vpnData = await vpnResp.json();
-      if (vpnData.security) {
+    if (VPNAPI_KEY && ip && ip !== "неизвестно") {
+      try {
+        const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`, { timeout: 10000 });
+        const vpnData = await vpnResp.json();
         isp = vpnData.network?.autonomous_system_organization || isp;
-        if (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor) {
+        if (vpnData.security && (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor)) {
           vpnWarning = "⚠ Пользователь использует VPN/Proxy/Tor";
         }
+      } catch (e) {
+        console.error("VPNAPI error:", e);
       }
-    } catch (e) {
-      console.error("Ошибка VPNAPI:", e);
     }
 
-    const message = `
-🟢 *Новый пользователь*
+    // Формируем безопасный HTML (удобнее, чем Markdown для user-generated strings)
+    const messageHtml = `
+<b>🟢 Новый пользователь</b>
 
-👤 Telegram: ${tgData.first_name} ${tgData.last_name} (@${tgData.username})
-🌍 IP: ${ip}
-📌 Страна: ${country}
-🏙 Регион: ${region}
-🏘 Город: ${city}
-🏢 Провайдер: ${isp}
-${vpnWarning}
+<b>👤 Telegram:</b> ${escapeHtml(tgData.first_name || "")} ${escapeHtml(tgData.last_name || "")} (${escapeHtml(tgData.username || "нет")})
+<b>🆔 ID:</b> ${escapeHtml(String(telegramId))}
 
-🖥 Браузер: ${browser || "неизвестно"}
-💻 ОС: ${os || "неизвестно"}
-🌐 Язык: ${language || "неизвестно"}
-📺 Экран: ${screen || "неизвестно"}
-⏰ Таймзона: ${timezone || "неизвестно"}
+<b>🌍 IP:</b> ${escapeHtml(ip)}
+<b>📌 Страна:</b> ${escapeHtml(country)}
+<b>🏙 Регион:</b> ${escapeHtml(region)}
+<b>🏘 Город:</b> ${escapeHtml(city)}
+<b>🏢 Провайдер:</b> ${escapeHtml(isp)}
+${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
+
+<b>🖥 Браузер:</b> ${escapeHtml(browser || "неизвестно")}
+<b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
+<b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
+<b>📺 Экран:</b> ${escapeHtml(screen || "неизвестно")}
+<b>⏰ Таймзона:</b> ${escapeHtml(timezone || "неизвестно")}
 `;
 
-    await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: "Markdown" });
+    // Отправляем продавцу
+    await bot.telegram.sendMessage(SELLER_CHAT_ID, messageHtml, { parse_mode: "HTML" });
 
-    res.status(200).json({ status: "ok" });
+    return res.status(200).json({ status: "ok" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: "error" });
+    console.error("bot-webhook handler error:", err);
+    return res.status(500).json({ status: "error", message: "internal error" });
   }
 }
 
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", chunk => body += chunk.toString());
-    req.on("end", () => resolve(JSON.parse(body)));
+    req.on("data", (chunk) => (body += chunk.toString()));
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body || "{}"));
+      } catch (e) {
+        reject(e);
+      }
+    });
     req.on("error", reject);
   });
 }
