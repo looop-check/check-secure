@@ -1,39 +1,81 @@
 import { Telegraf } from 'telegraf';
+import geoip from 'geoip-lite';
+import fetch from 'node-fetch';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
-const WEBAPP_URL = 'https://check-secure.vercel.app/index.html';
+const VPNAPI_KEY = process.env.VPNAPI_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// /start
+// Временное хранилище пользователей
+const users = {};
+
 bot.start((ctx) => {
-  ctx.reply('Привет! Для продолжения нажми кнопку ниже:', {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: 'Открыть WebApp', web_app: { url: WEBAPP_URL } }]
-      ]
-    }
-  });
+  const user = ctx.from;
+  users[user.id] = {
+    id: user.id,
+    username: user.username || '',
+    firstName: user.first_name || '',
+  };
+
+  ctx.reply('Привет! Данные будут проверяться для безопасности.');
 });
 
-// Вебхук для Vercel
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    try {
-      const body = await json(req);
-      await bot.handleUpdate(body);
-      res.status(200).send('OK');
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Error');
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+
+  const body = await parseJson(req);
+
+  // Telegram-инфо
+  const tgData = users[body.telegramId] || { username: '', firstName: '' };
+
+  // IP и гео
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const geo = geoip.lookup(ip);
+
+  // Проверка VPN/Proxy/Tor через VPNAPI
+  let vpnWarning = '';
+  let isp = geo?.isp || 'неизвестно';
+
+  try {
+    const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`);
+    const vpnData = await vpnResp.json();
+
+    if (vpnData.security) {
+      isp = vpnData.network?.autonomous_system_organization || isp;
+
+      if (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor) {
+        vpnWarning = '⚠ Пользователь использует VPN/Proxy/Tor';
+      }
     }
-  } else {
-    res.status(405).send('Method Not Allowed');
+  } catch (e) {
+    console.error('Ошибка VPNAPI:', e);
   }
+
+  const message = `
+🟢 *Новый пользователь*
+
+👤 Telegram: ${tgData.firstName} ${tgData.lastName} (@${tgData.username})
+🌍 IP: ${ip}
+📌 Страна: ${geo?.country || 'неизвестно'}
+🏙 Регион: ${geo?.region || 'неизвестно'}
+🏢 Провайдер: ${isp}
+${vpnWarning}
+
+🖥 Браузер: ${body.browser || 'неизвестно'}
+💻 ОС: ${body.os || 'неизвестно'}
+🌐 Язык: ${body.language || 'неизвестно'}
+📺 Экран: ${body.screen || 'неизвестно'}
+⏰ Таймзона: ${body.timezone || 'неизвестно'}
+`;
+
+  await bot.telegram.sendMessage(SELLER_CHAT_ID, message, { parse_mode: 'Markdown' });
+  res.status(200).json({ status: 'ok' });
 }
 
-async function json(req) {
+// Парсинг JSON
+async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
@@ -41,5 +83,3 @@ async function json(req) {
     req.on('error', reject);
   });
 }
-
-export { bot, SELLER_CHAT_ID };

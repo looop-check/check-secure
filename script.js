@@ -1,10 +1,5 @@
-const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-
 const data = {
-  telegramId: tgUser.id,
-  username: tgUser.username || '',
-  firstName: tgUser.first_name || '',
-  userAgent: navigator.userAgent,
+  telegramId: null, // сюда вставить ID из куки/формы если есть
   browser: navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)?.[0] || 'неизвестно',
   os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || 'неизвестно',
   language: navigator.language,
@@ -15,7 +10,7 @@ const data = {
 fetch('/api/webapp-data', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data)
+  body: JSON.stringify(data),
 })
 .then(res => res.json())
 .then(resp => console.log('Данные успешно отправлены на сервер:', resp))
