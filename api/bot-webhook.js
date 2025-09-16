@@ -11,8 +11,10 @@ export default async function handler(req, res) {
   try {
     const body = await parseJson(req);
 
-    // Берём Telegram-данные пользователя
-    const tgData = users[body.telegramId] || { firstName: "", lastName: "", username: "" };
+    const tgData = users[body.telegramId];
+    if (!tgData) {
+      return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
+    }
 
     // IP и гео
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -24,7 +26,6 @@ export default async function handler(req, res) {
     try {
       const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`);
       const vpnData = await vpnResp.json();
-
       if (vpnData.security) {
         isp = vpnData.network?.autonomous_system_organization || isp;
         if (vpnData.security.vpn || vpnData.security.proxy || vpnData.security.tor) {
@@ -35,11 +36,9 @@ export default async function handler(req, res) {
       console.error("Ошибка VPNAPI:", e);
     }
 
-    // Проверка страны
-    const allowedCountries = ["RU", "BY", "KZ"];
+    const allowedCountries = ["RU","BY","KZ"];
     const result = geo && allowedCountries.includes(geo.country) ? "проверка пройдена" : "не пройден";
 
-    // Формируем сообщение
     const message = `
 🟢 *Новый пользователь*
 
@@ -67,11 +66,10 @@ ${vpnWarning}
   }
 }
 
-// --- Парсинг JSON ---
 async function parseJson(req) {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", (chunk) => (body += chunk.toString()));
+    req.on("data", chunk => body += chunk.toString());
     req.on("end", () => resolve(JSON.parse(body)));
     req.on("error", reject);
   });

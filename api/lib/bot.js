@@ -19,13 +19,18 @@ bot.start((ctx) => {
   ctx.reply("Привет! Для продолжения нажми кнопку ниже:", {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Открыть сайт", url: `https://check-secure.vercel.app?tid=${id}` }],
+        [
+          {
+            text: "Открыть сайт",
+            url: `https://check-secure.vercel.app?tid=${id}`,
+          },
+        ],
       ],
     },
   });
 });
 
-// --- Запуск бота локально ---
+// --- Запуск бота (только локально) ---
 if (process.env.NODE_ENV !== "production") {
   bot.launch();
 }
