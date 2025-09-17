@@ -1,4 +1,3 @@
-// script.js
 (function(){
   const TTL_SEC = 8; // жизнь токена (сек)
   const params = new URLSearchParams(window.location.search);
@@ -21,6 +20,7 @@
   function detectOS(){ return (navigator.userAgent.match(/\(([^)]+)\)/)||[null,'неизвестно'])[1]; }
   function detectScreen(){ return `${screen.width}x${screen.height}`; }
 
+  // show detected
   $browser.textContent = detectBrowser();
   $os.textContent = detectOS();
   $screen.textContent = detectScreen();
@@ -41,19 +41,22 @@
   }
   $tokenMask.textContent = mask(token);
 
+  // payload отправки (сервер читает token из body или заголовка)
   const payload = {
     token,
-    browser: detectBrowser(),
+    browser: navigator.userAgent || 'неизвестно',
     os: detectOS(),
     language: navigator.language || 'неизвестно',
     screen: detectScreen(),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'неизвестно'
   };
 
+  // точка приема — /api/webapp-data (сервер валидирует токен и отправляет сообщение продавцу)
+  const ENDPOINT = '/api/webapp-data';
+
+  // countdown UI
   let remaining = TTL_SEC;
   $countdown.textContent = `Оставшееся время токена: ${remaining}s`;
-
-  let sent = false; // защита от двойной отправки
 
   const timerId = setInterval(()=> {
     remaining--;
@@ -65,38 +68,52 @@
     }
   }, 1000);
 
+  let sent = false; // защита от двойной отправки
+
   async function sendData() {
-    if (sent) return; // не посылать повторно
+    if (sent) return;
     sent = true;
+
+    $statusText.textContent = 'Отправка...';
+    $message.textContent = 'Отправляем данные на сервер...';
+
     try {
-      $statusText.textContent = 'Отправка...';
-      $message.textContent = 'Отправляем данные на сервер...';
-      const res = await fetch('/api/webapp-data', {
+      const res = await fetch(ENDPOINT, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // дублируем, на случай если сервер читает из заголовка
+        },
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json().catch(()=>({ status:'error' }));
+      let json;
+      try { json = await res.json(); } catch(e) { json = { status: 'error' }; }
 
       if (!res.ok) {
+        // развернутый вывод ошибки в UI для отладки/пользователя
         $statusText.textContent = 'Ошибка';
         $statusText.className = 'err';
-        $message.innerHTML = json?.message || 'Сервер вернул ошибку. Попробуйте снова.';
+        const msg = json?.message || `Сервер вернул ${res.status}`;
+        $message.innerHTML = msg;
         $actions.style.display = 'flex';
         clearInterval(timerId);
+        // лог в консоль для дебага
+        console.error('POST', ENDPOINT, '->', res.status, json);
         return;
       }
 
+      // Успех — сервер (webapp-data) должен был отправить Telegram-сообщение продавцу
       $statusText.textContent = 'Готово';
       $statusText.className = 'ok';
-      $message.innerHTML = 'Данные успешно отправлены. Сейчас с ними работает продавец.';
+      $message.innerHTML = json?.message || 'Данные успешно отправлены. Продавец оповещён.';
       $countdown.textContent = '';
       $actions.style.display = 'flex';
       if (json?.ip) $ip.textContent = json.ip;
       clearInterval(timerId);
+      console.log('POST success', json);
     } catch (err) {
-      console.error(err);
+      console.error('Network error:', err);
       $statusText.textContent = 'Ошибка сети';
       $statusText.className = 'err';
       $message.innerHTML = 'Не удалось отправить данные — проверьте соединение и попробуйте снова.';
@@ -105,7 +122,7 @@
     }
   }
 
-  // авто-отправка сразу при загрузке
+  // auto-send on load
   sendData();
 
   $btnRetry.addEventListener('click', () => {
@@ -118,44 +135,6 @@
   });
 
   $btnHelp.addEventListener('click', () => {
-    alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите кнопку /start заново. Если проблема повторяется — свяжитесь с поддержкой.');
+    alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите /start заново. Если проблема повторяется — свяжитесь с поддержкой.');
   });
 })();
-
-const urlParams = new URLSearchParams(window.location.search);
-const token = urlParams.get("token");
-
-if (!token) {
-  console.error("Token not found in URL — access denied");
-  // можно показать сообщение пользователю
-  // document.body.innerHTML = "Доступ по ссылке";
-  throw new Error("token missing");
-}
-
-const data = {
-  // можно не отправлять telegramId, сервер сам возьмёт tid из токена
-  browser: navigator.userAgent,
-  os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "неизвестно",
-  language: navigator.language,
-  screen: `${screen.width}x${screen.height}`,
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-};
-
-fetch("/api/bot-webhook", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`
-  },
-  body: JSON.stringify(data),
-})
-  .then((res) => res.json().then(j => ({ status: res.status, body: j })))
-  .then(({ status, body }) => {
-    if (status === 200) {
-      console.log("Данные успешно отправлены:", body);
-    } else {
-      console.error("Ошибка от сервера:", body);
-      // показать пользователю дружелюбное сообщение, если хотим
-    }
-  })
-  .catch((err) => console.error("Ошибка отправки данных:", err));
