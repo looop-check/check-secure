@@ -88,8 +88,6 @@ export default async function handler(req, res) {
     }
 
     const messageHtml = `
-<b>🟢 Новый пользователь</b>
-
 <b>👤 Telegram:</b> ${escapeHtml(tgData.first_name || "")} ${escapeHtml(tgData.last_name || "")} (@${escapeHtml(tgData.username || "нет")})
 <b>🆔 ID:</b> ${escapeHtml(String(telegramId))}
 
