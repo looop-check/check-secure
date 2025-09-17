@@ -34,3 +34,5 @@ bot.start(async (ctx) => {
     console.error("bot /start error:", e);
   }
 });
+
+export default bot;
