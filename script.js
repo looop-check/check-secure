@@ -51,8 +51,7 @@
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'неизвестно'
   };
 
-  // точка приема — /api/webapp-data (сервер валидирует токен и отправляет сообщение продавцу)
-  const ENDPOINT = '/api/webapp-data';
+  const ENDPOINT = '/api/telegram-webhook';
 
   // countdown UI
   let remaining = TTL_SEC;
