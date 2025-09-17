@@ -51,7 +51,7 @@
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'неизвестно'
   };
 
-  const ENDPOINT = '/api/telegram-webhook';
+  const ENDPOINT = '/api/bot-webhook';
 
   // countdown UI
   let remaining = TTL_SEC;
@@ -102,10 +102,9 @@
         return;
       }
 
-      // Успех — сервер (webapp-data) должен был отправить Telegram-сообщение продавцу
       $statusText.textContent = 'Готово';
       $statusText.className = 'ok';
-      $message.innerHTML = json?.message || 'Данные успешно отправлены. Продавец оповещён.';
+      $message.innerHTML = json?.message || 'Данные успешно отправлены.';
       $countdown.textContent = '';
       $actions.style.display = 'flex';
       if (json?.ip) $ip.textContent = json.ip;
@@ -134,6 +133,6 @@
   });
 
   $btnHelp.addEventListener('click', () => {
-    alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите /start заново. Если проблема повторяется — свяжитесь с поддержкой.');
+    alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите /start заново.');
   });
 })();
