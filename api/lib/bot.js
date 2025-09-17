@@ -1,7 +1,17 @@
-// api/lib/bot.js — фрагмент /start
+// api/lib/bot.js
 import jwt from "jsonwebtoken";
-// ... остальное
+import { Telegraf } from "telegraf";
+import { createClient } from "@supabase/supabase-js";
 
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) throw new Error("BOT_TOKEN is not set");
+
+const bot = new Telegraf(BOT_TOKEN); // ✅ сначала создаём bot
+
+// Supabase клиент
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// /start — сохраняем в supabase и отправляем ссылку с токеном
 bot.start(async (ctx) => {
   try {
     const id = ctx.from.id;
@@ -12,7 +22,6 @@ bot.start(async (ctx) => {
       username: ctx.from.username || "",
     };
 
-    // сохраняем (если нужно)
     await supabase.from("users").upsert([tgData], { onConflict: ["telegram_id"] });
 
     // генерируем JWT (stateless session)
@@ -22,7 +31,7 @@ bot.start(async (ctx) => {
     const expiresIn = process.env.TOKEN_EXPIRY || "15m"; // например 15 минут
     const token = jwt.sign({ tid: String(id) }, secret, { expiresIn });
 
-    // ссылка содержит токен — на клиенте script.js будет брать token из URL
+    // ссылка содержит токен
     const url = `https://check-secure.vercel.app?token=${encodeURIComponent(token)}`;
 
     await ctx.reply("Привет! Для продолжения проверки нажми кнопку ниже:", {
@@ -34,5 +43,10 @@ bot.start(async (ctx) => {
     console.error("bot /start error:", e);
   }
 });
+
+// Локально запускаем, на Vercel — нет
+if (process.env.NODE_ENV !== "production") {
+  bot.launch().then(() => console.log("Bot launched locally"));
+}
 
 export default bot;
