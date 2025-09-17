@@ -5,6 +5,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "geoip-lite": "^1.4.10",
+    "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
     "telegraf": "^4.16.2"
   }

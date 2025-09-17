@@ -1,35 +1,57 @@
+// api/bot-webhook.js (обновлённый)
 import fetch from "node-fetch";
 import geoip from "geoip-lite";
 import { createClient } from "@supabase/supabase-js";
-import bot from "./lib/bot.js"; // поправил путь: api -> lib
+import jwt from "jsonwebtoken";
+import bot from "./lib/bot.js"; // если нужно; тут bot используется только для отправки сообщения продавцу
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
 const VPNAPI_KEY = process.env.VPNAPI_KEY;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// helper
 function escapeHtml(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function normalizeIp(raw) {
+  if (!raw) return "неизвестно";
+  const first = raw.split(",")[0].trim();
+  if (first.includes("::ffff:")) return first.split("::ffff:").pop();
+  return first;
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
   try {
-    const body = await parseJson(req);
-    const { telegramId, browser, os, language, screen, timezone } = body || {};
+    // получаем токен из заголовка Authorization: Bearer <token>
+    const auth = req.headers.authorization || req.headers.Authorization;
+    if (!auth || !auth.startsWith("Bearer ")) {
+      return res.status(403).json({ status: "error", message: "Token required" });
+    }
+    const token = auth.split(" ")[1];
 
-    if (!telegramId) {
-      return res.status(400).json({ status: "error", message: "telegramId is required" });
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+      console.error("JWT verify error:", e);
+      return res.status(403).json({ status: "error", message: "Invalid or expired token" });
     }
 
-    // Получаем данные пользователя из Supabase
+    const telegramId = payload?.tid;
+    if (!telegramId) {
+      return res.status(400).json({ status: "error", message: "telegramId not in token" });
+    }
+
+    const body = await parseJson(req);
+    const { browser, os, language, screen, timezone } = body || {};
+
+    // Получаем данные пользователя из Supabase (если тебе всё ещё нужно)
     const { data: tgData, error } = await supabase
       .from("users")
       .select("telegram_id, first_name, last_name, username")
@@ -41,17 +63,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
     }
 
-    // IP (на Vercel в x-forwarded-for)
     const ipHeader = req.headers["x-forwarded-for"];
-    const ip = ipHeader ? ipHeader.split(",")[0].trim() : (req.socket && req.socket.remoteAddress) || "неизвестно";
-
-    // geo
+    const ip = normalizeIp(ipHeader || (req.socket && req.socket.remoteAddress) || "");
     const geo = geoip.lookup(ip) || {};
     const country = geo.country || "неизвестно";
     const region = geo.region || "неизвестно";
     const city = geo.city || "неизвестно";
 
-    // VPN/ISP через vpnapi.io
+    // vpnapi
     let isp = "неизвестно";
     let vpnWarning = "";
     if (VPNAPI_KEY && ip && ip !== "неизвестно") {
@@ -59,19 +78,15 @@ export default async function handler(req, res) {
         const vpnResp = await fetch(`https://vpnapi.io/api/${ip}?key=${VPNAPI_KEY}`, { timeout: 10000 });
         const vpnData = await vpnResp.json();
         isp = vpnData.network?.autonomous_system_organization || isp;
-        
         const { vpn, proxy, tor } = vpnData.security || {};
-
         if (vpn) vpnWarning = "⚠ Использует VPN";
         else if (proxy) vpnWarning = "⚠ Использует Proxy";
         else if (tor) vpnWarning = "⚠ Использует Tor";
-
       } catch (e) {
         console.error("VPNAPI error:", e);
       }
     }
 
-    // Формируем безопасный HTML (удобнее, чем Markdown для user-generated strings)
     const messageHtml = `
 <b>🟢 Новый пользователь</b>
 
@@ -90,7 +105,6 @@ ${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
 <b>⏰ Часовой пояс:</b> ${escapeHtml(timezone || "неизвестно")}
 `;
 
-    // Отправляем продавцу
     await bot.telegram.sendMessage(SELLER_CHAT_ID, messageHtml, { parse_mode: "HTML" });
 
     return res.status(200).json({ status: "ok" });
@@ -114,5 +128,3 @@ async function parseJson(req) {
     req.on("error", reject);
   });
 }
-
-

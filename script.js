@@ -1,9 +1,16 @@
-// получаем tid из URL, если есть
+// script.js
 const urlParams = new URLSearchParams(window.location.search);
-const telegramId = urlParams.get("tid") || null;
+const token = urlParams.get("token");
+
+if (!token) {
+  console.error("Token not found in URL — access denied");
+  // можно показать сообщение пользователю
+  // document.body.innerHTML = "Доступ по ссылке";
+  throw new Error("token missing");
+}
 
 const data = {
-  telegramId,
+  // можно не отправлять telegramId, сервер сам возьмёт tid из токена
   browser: navigator.userAgent,
   os: navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "неизвестно",
   language: navigator.language,
@@ -13,16 +20,19 @@ const data = {
 
 fetch("/api/bot-webhook", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  },
   body: JSON.stringify(data),
 })
   .then((res) => res.json().then(j => ({ status: res.status, body: j })))
   .then(({ status, body }) => {
     if (status === 200) {
       console.log("Данные успешно отправлены:", body);
-      // можно показать пользователю сообщение, что проверка отправлена
     } else {
       console.error("Ошибка от сервера:", body);
+      // показать пользователю дружелюбное сообщение, если хотим
     }
   })
   .catch((err) => console.error("Ошибка отправки данных:", err));
