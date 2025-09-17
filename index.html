@@ -1,12 +1,315 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Check</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Security Check — Проверка безопасности</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --muted:#9aa4b2;
+      --accent:#60a5fa;
+      --danger:#fb7185;
+      --success:#34d399;
+      --glass: rgba(255,255,255,0.03);
+      --radius:14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: linear-gradient(180deg,#071020 0%, #071626 100%);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .card{
+      width:100%;
+      max-width:720px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      box-shadow: 0 10px 30px rgba(2,6,23,0.7);
+      padding:28px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    header {
+      display:flex;
+      gap:16px;
+      align-items:center;
+      margin-bottom:18px;
+    }
+
+    .logo {
+      width:56px;
+      height:56px;
+      border-radius:12px;
+      background:linear-gradient(135deg,var(--accent), #7dd3fc);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#04202f;
+      font-weight:700;
+      font-size:20px;
+      box-shadow: 0 6px 18px rgba(96,165,250,0.12);
+    }
+
+    h1{font-size:20px;margin:0}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+    .status {
+      display:grid;
+      grid-template-columns: 1fr 140px;
+      gap:16px;
+      align-items:center;
+      margin-top:18px;
+    }
+
+    .box {
+      background: var(--glass);
+      padding:16px;
+      border-radius:12px;
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+
+    .left .meta { display:flex; gap:12px; flex-wrap:wrap;}
+    .meta .chip {
+      background: rgba(255,255,255,0.02);
+      padding:6px 10px;
+      border-radius:999px;
+      color:var(--muted);
+      font-size:13px;
+      border:1px solid rgba(255,255,255,0.01);
+    }
+
+    .loader {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+    }
+    .spinner{
+      width:64px;height:64px;border-radius:50%;
+      background: conic-gradient(var(--accent), transparent 60%);
+      mask: radial-gradient(#000 55%, transparent 57%);
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .countdown {
+      font-size:14px;color:var(--muted);
+      margin-top:6px;
+    }
+
+    .message {
+      margin-top:14px;
+      font-size:15px;
+      color:var(--muted);
+    }
+
+    .ok { color:var(--success); font-weight:600; }
+    .err { color:var(--danger); font-weight:600; }
+
+    .actions { margin-top:18px; display:flex; gap:10px; align-items:center; }
+    .btn {
+      background:linear-gradient(180deg,var(--accent), #3b82f6);
+      color:#04202f;
+      border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;
+      box-shadow: 0 8px 20px rgba(59,130,246,0.12);
+    }
+    .btn.ghost{
+      background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04);
+    }
+
+    footer{margin-top:16px;color:var(--muted);font-size:13px;text-align:center}
+
+    @media (max-width:640px){
+      .status{grid-template-columns: 1fr}
+      .loader{flex-direction:row}
+      .spinner{width:48px;height:48px}
+    }
+  </style>
 </head>
 <body>
-    <h1 style="text-align: center;">Проверка безопасности...</h1>
+  <div class="card" role="main" aria-live="polite">
+    <header>
+      <div class="logo">SC</div>
+      <div>
+        <h1>Проверка безопасности</h1>
+        <p class="lead">Мы проверяем, действительно ли вы — владелец Telegram-аккаунта.</p>
+      </div>
+    </header>
+
+    <div class="status">
+      <div class="box left">
+        <div class="meta">
+          <div class="chip" id="chip-token">Токен: <span id="token-mask">—</span></div>
+          <div class="chip" id="chip-status">Статус: <strong id="status-text">Ожидание</strong></div>
+          <div class="chip" id="chip-ip">IP: <span id="ip">—</span></div>
+        </div>
+
+        <div class="loader" style="margin-top:18px">
+          <div class="spinner" aria-hidden="true"></div>
+          <div class="countdown" id="countdown">Проверка…</div>
+        </div>
+
+        <div class="message" id="message">Страница автоматически отправит данные для проверки. Не закрывайте окно.</div>
+
+        <div class="actions" id="actions" style="display:none">
+          <button class="btn" id="btn-retry">Попробовать снова</button>
+          <button class="btn ghost" id="btn-help">Что делать, если ошибка?</button>
+        </div>
+      </div>
+
+      <div class="box right" style="min-height:140px">
+        <div style="font-size:14px;color:var(--muted)">Детали браузера</div>
+        <div style="margin-top:10px">
+          <div class="chip" id="chip-browser">Браузер: <span id="browser">—</span></div>
+          <div class="chip" id="chip-os">ОС: <span id="os">—</span></div>
+          <div class="chip" id="chip-screen">Экран: <span id="screen">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Если токен просрочен — вернитесь в чат с ботом и нажмите /start ещё раз.
+    </footer>
+  </div>
+
+<script>
+(function(){
+  const TTL_SEC = 8; // жизнь токена (сек)
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t') || params.get('token') || null;
+
+  const $tokenMask = document.getElementById('token-mask');
+  const $statusText = document.getElementById('status-text');
+  const $countdown = document.getElementById('countdown');
+  const $message = document.getElementById('message');
+  const $actions = document.getElementById('actions');
+  const $btnRetry = document.getElementById('btn-retry');
+  const $btnHelp = document.getElementById('btn-help');
+
+  const $browser = document.getElementById('browser');
+  const $os = document.getElementById('os');
+  const $screen = document.getElementById('screen');
+  const $ip = document.getElementById('ip');
+
+  // helper: detect browser/os similar to your script.js
+  function detectBrowser(){ return (navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/gi)||['неизвестно'])[0]; }
+  function detectOS(){ return (navigator.userAgent.match(/\(([^)]+)\)/)||[null,'неизвестно'])[1]; }
+  function detectScreen(){ return `${screen.width}x${screen.height}`; }
+
+  // show detected
+  $browser.textContent = detectBrowser();
+  $os.textContent = detectOS();
+  $screen.textContent = detectScreen();
+
+  if (!token) {
+    $tokenMask.textContent = 'отсутствует';
+    $statusText.textContent = 'Ошибка';
+    $statusText.className = 'err';
+    $message.innerHTML = 'В URL отсутствует токен. Вернитесь в чат с ботом и нажмите кнопку ещё раз.';
+    $countdown.textContent = '';
+    $actions.style.display = 'flex';
+    return;
+  }
+
+  // mask token for display (show beginning and end)
+  function mask(t){
+    if(!t) return '—';
+    return t.length>12 ? t.slice(0,6)+'…'+t.slice(-4) : t;
+  }
+  $tokenMask.textContent = mask(token);
+
+  // build payload
+  const payload = {
+    token,
+    browser: detectBrowser(),
+    os: detectOS(),
+    language: navigator.language || 'неизвестно',
+    screen: detectScreen(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'неизвестно'
+  };
+
+  // countdown UI
+  let remaining = TTL_SEC;
+  $countdown.textContent = `Оставшееся время токена: ${remaining}s`;
+
+  const timerId = setInterval(()=> {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(timerId);
+      $countdown.textContent = 'Токен истёк';
+    } else {
+      $countdown.textContent = `Оставшееся время токена: ${remaining}s`;
+    }
+  }, 1000);
+
+  // perform send
+  async function sendData() {
+    try {
+      $statusText.textContent = 'Отправка...';
+      $message.textContent = 'Отправляем данные на сервер...';
+      const res = await fetch('/api/webapp-data', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(()=>({ status:'error' }));
+
+      if (!res.ok) {
+        // ошибка от сервера
+        $statusText.textContent = 'Ошибка';
+        $statusText.className = 'err';
+        $message.innerHTML = json?.message || 'Сервер вернул ошибку. Попробуйте снова.';
+        $actions.style.display = 'flex';
+        clearInterval(timerId);
+        return;
+      }
+
+      // успех
+      $statusText.textContent = 'Готово';
+      $statusText.className = 'ok';
+      $message.innerHTML = 'Данные успешно отправлены. Сейчас с ними работает продавец.';
+      $countdown.textContent = '';
+      $actions.style.display = 'flex';
+      // показать ip из ответа, если сервер вернул
+      if (json?.ip) $ip.textContent = json.ip;
+      clearInterval(timerId);
+    } catch (err) {
+      console.error(err);
+      $statusText.textContent = 'Ошибка сети';
+      $statusText.className = 'err';
+      $message.innerHTML = 'Не удалось отправить данные — проверьте соединение и попробуйте снова.';
+      $actions.style.display = 'flex';
+      clearInterval(timerId);
+    }
+  }
+
+  // авто-отправка сразу при загрузке
+  sendData();
+
+  $btnRetry.addEventListener('click', () => {
+    $actions.style.display = 'none';
+    $statusText.textContent = 'Ожидание';
+    $message.textContent = 'Попытка повторной отправки...';
+    remaining = TTL_SEC;
+    sendData();
+  });
+
+  $btnHelp.addEventListener('click', () => {
+    alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите кнопку /start заново. Если проблема повторяется — свяжитесь с поддержкой.');
+  });
+})();
+</script>
 </body>
-    <script src="./script.js"></script>
 </html>
