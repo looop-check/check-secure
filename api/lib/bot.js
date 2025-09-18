@@ -59,13 +59,18 @@ bot.start(async (ctx) => {
   }
 });
 
-// Отслеживание входа через одноразовую ссылку
+// Отслеживание новых участников канала
 bot.on("chat_member", async (ctx) => {
   const member = ctx.chatMember;
   if (!member || !member.new_chat_member) return;
 
   const userId = member.new_chat_member.user.id;
+  const newStatus = member.new_chat_member.status;
 
+  // Нас интересуют только новые обычные участники
+  if (newStatus !== "member") return;
+
+  // Проверяем одноразовую ссылку в БД
   const { data } = await supabase.from("invites")
     .select("*")
     .eq("telegram_id", String(userId))
@@ -74,10 +79,17 @@ bot.on("chat_member", async (ctx) => {
     .single();
 
   if (!data) {
-    try { await bot.telegram.kickChatMember(CHANNEL_ID, userId); } catch(e){ console.error(e); }
+    // Чужой пользователь — кик
+    try {
+      await bot.telegram.kickChatMember(CHANNEL_ID, userId, { revoke_messages: true });
+      console.log(`Кикнули чужого пользователя ${userId}`);
+    } catch(e){
+      console.error("Kick error:", e);
+    }
     return;
   }
 
+  // Если всё верно — помечаем ссылку как использованную
   await supabase.from("invites").update({ used: true }).eq("id", data.id);
 });
 
