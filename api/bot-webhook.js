@@ -121,12 +121,24 @@ ${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
     }
 
     // Если VPN/Proxy/Tor или страна запрещена — ссылки не даем
-    if (vpnWarning || countryCode !== "RU" || "Russia") return res.status(200).json({ status: "denied" });
+    if (vpnWarning || countryCode !== "RU") {
+      return res.status(200).json({ status: "denied" });
+    }
 
     // Иначе генерируем одноразовую ссылку
     const inviteLink = await generateInvite(telegramId);
 
-    return res.status(200).json({ status: "ok", inviteLink, ip, country, countryCode, region, city, isp, vpnDetected });
+    return res.status(200).json({
+      status: "ok",
+      inviteLink,
+      ip,
+      country,
+      countryCode,
+      region,
+      city,
+      isp,
+      vpnDetected
+    });
 
   } catch(err) {
     console.error("bot-webhook error:", err);
