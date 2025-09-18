@@ -85,7 +85,7 @@
       let json;
       try { json = await res.json(); } catch(e) { json = { status: 'error' }; }
 
-      if (!res.ok || !json?.invite_link) {
+      if (!res.ok || !json?.inviteLink) {
         $statusText.textContent = 'Ошибка';
         $statusText.className = 'err';
         const msg = json?.message || `Сервер вернул ${res.status}`;
