@@ -1,5 +1,5 @@
 (function(){
-  const TTL_SEC = 8; // жизнь токена (сек)
+  const TTL_SEC = 10; // жизнь токена (сек)
   const params = new URLSearchParams(window.location.search);
   const token = params.get('t') || params.get('token') || null;
 
@@ -135,4 +135,5 @@
   $btnHelp.addEventListener('click', () => {
     alert('Если ошибка сохраняется: вернитесь в чат с ботом и нажмите /start заново.');
   });
+
 })();
