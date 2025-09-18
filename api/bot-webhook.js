@@ -97,7 +97,7 @@ export default async function handler(req, res) {
 <b>🏙 Регион:</b> ${escapeHtml(region)}
 <b>🏘 Город:</b> ${escapeHtml(city)}
 <b>🏢 Провайдер:</b> ${escapeHtml(isp)}
-${vpnWarning ? `⚠ Использует <b>${vpnWarning}</b>` : ""}
+${vpnWarning ? `<b>⚠ Использует ${vpnWarning}. Пользователь не допущен в Telegram-канал.</b>` : ""}
 
 <b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
 <b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
