@@ -17,9 +17,8 @@ const SITE_URL = process.env.SITE_URL || "https://check-secure.vercel.app/";
 const bot = new Telegraf(BOT_TOKEN);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Генерация одноразовой ссылки в канал на 8 секунд
 export async function generateInvite(telegram_id) {
-  const expireDate = Math.floor(Date.now() / 1000) + 8; // 8 секунд
+  const expireDate = Math.floor(Date.now() / 1000) + 30;
   const linkData = await bot.telegram.createChatInviteLink(CHANNEL_ID, {
     member_limit: 1,
     expire_date: expireDate,
