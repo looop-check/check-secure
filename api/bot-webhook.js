@@ -8,6 +8,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const JWT_SECRET = process.env.JWT_SECRET;
 const VPNAPI_KEY = process.env.VPNAPI_KEY;
+const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -95,8 +96,27 @@ export default async function handler(req, res) {
     else if (vpnDetected.proxy) vpnWarning = "⚠ Использует Proxy";
     else if (vpnDetected.tor) vpnWarning = "⚠ Использует Tor";
 
-    // Логирование
-    console.log(`User ${telegramId}, VPN: ${vpnWarning}, Country: ${countryCode}`);
+    // Сообщение для продавца
+    const messageHtml = `
+<b>👤 Telegram:</b> ${escapeHtml(tgData.first_name)} ${escapeHtml(tgData.last_name)} (@${escapeHtml(tgData.username)})
+<b>🆔 ID:</b> ${escapeHtml(String(telegramId))}
+
+<b>🌍 IP:</b> ${escapeHtml(ip)}
+<b>📌 Страна:</b> ${escapeHtml(country)}
+<b>🏙 Регион:</b> ${escapeHtml(region)}
+<b>🏘 Город:</b> ${escapeHtml(city)}
+<b>🏢 Провайдер:</b> ${escapeHtml(isp)}
+${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
+
+<b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
+<b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
+<b>⏰ Часовой пояс:</b> ${escapeHtml(timezone || "неизвестно")}
+`;
+
+    if (SELLER_CHAT_ID) {
+      try { await bot.telegram.sendMessage(SELLER_CHAT_ID, messageHtml, { parse_mode: "HTML" }); }
+      catch(e){ console.warn("notify seller error:", e); }
+    }
 
     // Отказываем, если VPN/Proxy/Tor или не RU
     if (vpnWarning || (countryCode || "").toUpperCase() !== "RU") {
