@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 import geoip from "geoip-lite";
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
-import bot from "./lib/bot.js"; // нужен для отправки сообщения продавцу
+import bot from "./lib/bot.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -13,7 +13,6 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// утилиты
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
   try {
-    // токен из заголовка
     const auth = req.headers.authorization || req.headers.Authorization;
     if (!auth || !auth.startsWith("Bearer ")) {
       return res.status(403).json({ status: "error", message: "Token required" });
@@ -51,26 +49,19 @@ export default async function handler(req, res) {
     }
 
     const telegramId = payload?.tid;
-    if (!telegramId) {
-      return res.status(400).json({ status: "error", message: "telegramId not in token" });
-    }
+    if (!telegramId) return res.status(400).json({ status: "error", message: "telegramId not in token" });
 
     const body = await parseJson(req);
     const { browser, os, language, screen, timezone } = body || {};
 
-    // достаём из базы
     const { data: tgData, error } = await supabase
       .from("users")
       .select("telegram_id, first_name, last_name, username")
       .eq("telegram_id", String(telegramId))
       .single();
 
-    if (error || !tgData) {
-      console.error("Supabase: telegramId not found", error);
-      return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
-    }
+    if (error || !tgData) return res.status(400).json({ status: "error", message: "Telegram ID не найден" });
 
-    // IP и гео
     const ipHeader = req.headers["x-forwarded-for"];
     const ip = normalizeIp(ipHeader || (req.socket && req.socket.remoteAddress) || "");
     const geo = geoip.lookup(ip) || {};
@@ -78,7 +69,6 @@ export default async function handler(req, res) {
     const region = geo.region || "неизвестно";
     const city = geo.city || "неизвестно";
 
-    // VPNAPI
     let isp = "неизвестно";
     let vpnWarning = "";
     if (VPNAPI_KEY && ip && ip !== "неизвестно") {
@@ -90,12 +80,9 @@ export default async function handler(req, res) {
         if (vpn) vpnWarning = "⚠ Использует VPN";
         else if (proxy) vpnWarning = "⚠ Использует Proxy";
         else if (tor) vpnWarning = "⚠ Использует Tor";
-      } catch (e) {
-        console.error("VPNAPI error:", e);
-      }
+      } catch (e) { console.error("VPNAPI error:", e); }
     }
 
-    // сообщение для продавца
     const messageHtml = `
 <b>👤 Telegram:</b> ${escapeHtml(tgData?.first_name || "")} ${escapeHtml(tgData?.last_name || "")} (@${escapeHtml(tgData?.username || "нет")})
 <b>🆔 ID:</b> ${escapeHtml(String(telegramId))}
@@ -115,12 +102,11 @@ ${vpnWarning ? `<b>${escapeHtml(vpnWarning)}</b>\n` : ""}
     if (SELLER_CHAT_ID) {
       try {
         await bot.telegram.sendMessage(SELLER_CHAT_ID, messageHtml, { parse_mode: "HTML" });
-      } catch (e) {
-        console.warn("notify seller error:", e);
-      }
+      } catch (e) { console.warn("notify seller error:", e); }
     }
 
     return res.status(200).json({ status: "ok" });
+
   } catch (err) {
     console.error("bot-webhook handler error:", err);
     return res.status(500).json({ status: "error", message: "internal error" });
@@ -132,11 +118,7 @@ async function parseJson(req) {
     let body = "";
     req.on("data", (chunk) => (body += chunk.toString()));
     req.on("end", () => {
-      try {
-        resolve(JSON.parse(body || "{}"));
-      } catch (e) {
-        reject(e);
-      }
+      try { resolve(JSON.parse(body || "{}")); } catch (e) { reject(e); }
     });
     req.on("error", reject);
   });
