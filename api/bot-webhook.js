@@ -120,16 +120,17 @@ ${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
       catch(e){ console.warn("notify seller error:", e); }
     }
 
-    // Нормализуем countryCode для проверки
+    // Проверка разрешённых стран
+    const allowedCountries = ["RU", "RUS", "Russia"];
     const normalizedCountryCode = (countryCode || "").toUpperCase();
-    console.log("VPN warning:", vpnWarning, "Country code:", countryCode, "Normalized:", normalizedCountryCode);
+    console.log("VPN warning:", vpnWarning, "Country code:", countryCode, "Normalized:", normalizedCountryCode, "Country:", country);
 
     // Если VPN/Proxy/Tor или страна запрещена — ссылки не даем
-    if (vpnWarning || normalizedCountryCode !== "RU") {
+    if (vpnWarning || !allowedCountries.includes(normalizedCountryCode) && !allowedCountries.includes(country)) {
       return res.status(200).json({ status: "denied" });
     }
 
-    // Иначе генерируем одноразовую ссылку
+    // Генерируем одноразовую ссылку
     const inviteLink = await generateInvite(telegramId);
 
     return res.status(200).json({
