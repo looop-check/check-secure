@@ -112,10 +112,24 @@ ${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
       }
     }
 
-    // если VPN или страна не RU → отказ
-    if (vpnWarning || (countryCode || "").toUpperCase() !== "RU") {
-      return res.status(200).json({ status: "denied" });
-    }
+// если VPN или страна не RU → отказ
+  if (vpnWarning || (countryCode || "").toUpperCase() !== "RU") {
+    // Отправляем уведомление пользователю в Telegram (если нужно)
+    try {
+      const botModule = await import("./lib/bot.js");
+      await botModule.default.telegram.sendMessage(
+        telegramId,
+        vpnWarning 
+          ? `⚠ Проверка не пройдена: обнаружен ${vpnWarning}` 
+          : "⚠ Проверка не пройдена: доступ разрешён только для пользователей из России."
+      );
+    } catch(e) {
+      console.error("notify user error:", e);
+    } 
+
+  return res.status(200).json({ status: "denied" });
+}
+
 
   const inviteLink = await generateInvite(telegramId, 20);
 
