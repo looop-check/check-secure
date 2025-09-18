@@ -120,8 +120,12 @@ ${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
       catch(e){ console.warn("notify seller error:", e); }
     }
 
+    // Нормализуем countryCode для проверки
+    const normalizedCountryCode = (countryCode || "").toUpperCase();
+    console.log("VPN warning:", vpnWarning, "Country code:", countryCode, "Normalized:", normalizedCountryCode);
+
     // Если VPN/Proxy/Tor или страна запрещена — ссылки не даем
-    if (vpnWarning || countryCode !== "RU") {
+    if (vpnWarning || normalizedCountryCode !== "RU") {
       return res.status(200).json({ status: "denied" });
     }
 
