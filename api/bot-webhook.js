@@ -36,12 +36,14 @@ export default async function handler(req, res) {
 
   try {
     // Получаем тело запроса
-    const body = req.body && Object.keys(req.body).length ? req.body : await new Promise((resolve, reject) => {
-      let d = "";
-      req.on("data", c => d += c.toString());
-      req.on("end", () => { try { resolve(JSON.parse(d || "{}")); } catch(e) { reject(e); } });
-      req.on("error", reject);
-    });
+    const body = req.body && Object.keys(req.body).length
+      ? req.body
+      : await new Promise((resolve, reject) => {
+          let d = "";
+          req.on("data", c => d += c.toString());
+          req.on("end", () => { try { resolve(JSON.parse(d || "{}")); } catch(e) { reject(e); } });
+          req.on("error", reject);
+        });
 
     const { token, browser, os, language, screen, timezone } = body;
     if (!token) return res.status(400).json({ status: "error", message: "Token required" });
@@ -66,6 +68,7 @@ export default async function handler(req, res) {
 
     // Инициализация переменных для гео и провайдера
     let country = "неизвестно";
+    let countryCode = "XX";
     let region = "неизвестно";
     let city = "неизвестно";
     let isp = "неизвестно";
@@ -78,6 +81,7 @@ export default async function handler(req, res) {
         const vpnData = await vpnResp.json();
 
         country = vpnData.location?.country || country;
+        countryCode = vpnData.location?.country_code || countryCode;
         region = vpnData.location?.region || region;
         city = vpnData.location?.city || city;
         isp = vpnData.network?.autonomous_system_organization || isp;
@@ -117,12 +121,12 @@ ${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
     }
 
     // Если VPN/Proxy/Tor или страна запрещена — ссылки не даем
-    if (vpnWarning || country !== "RU") return res.status(200).json({ status: "denied" });
+    if (vpnWarning || countryCode !== "RU") return res.status(200).json({ status: "denied" });
 
     // Иначе генерируем одноразовую ссылку
     const inviteLink = await generateInvite(telegramId);
 
-    return res.status(200).json({ status: "ok", inviteLink, ip, country, region, city, isp, vpnDetected });
+    return res.status(200).json({ status: "ok", inviteLink, ip, country, countryCode, region, city, isp, vpnDetected });
 
   } catch(err) {
     console.error("bot-webhook error:", err);
