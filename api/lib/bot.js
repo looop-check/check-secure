@@ -12,6 +12,8 @@ if (!CHANNEL_ID) throw new Error("CHANNEL_ID is not set");
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET not set");
 
+const SITE_URL = process.env.SITE_URL || "https://check-secure.vercel.app/";
+
 const bot = new Telegraf(BOT_TOKEN);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
@@ -46,7 +48,7 @@ bot.start(async (ctx) => {
     await supabase.from("users").upsert([tgData], { onConflict: ["telegram_id"] });
 
     const token = jwt.sign({ tid: String(id) }, JWT_SECRET, { expiresIn: process.env.TOKEN_EXPIRY || "15m" });
-    const url = `${process.env.SITE_URL}/check?token=${encodeURIComponent(token)}`;
+    const url = `${SITE_URL}?token=${encodeURIComponent(token)}`;
 
     await ctx.reply("Привет! Для продолжения проверки нажми кнопку ниже:", {
       reply_markup: { inline_keyboard: [[{ text: "Пройти проверку", url }]] },
@@ -79,6 +81,7 @@ bot.on("chat_member", async (ctx) => {
   await supabase.from("invites").update({ used: true }).eq("id", data.id);
 });
 
+// Локальный запуск для разработки
 if (process.env.NODE_ENV !== "production") {
   bot.launch().then(() => console.log("Bot launched locally"));
 }
