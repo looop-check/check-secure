@@ -83,9 +83,9 @@ export default async function handler(req, res) {
     }
 
     let vpnWarning = "";
-    if (vpnDetected.vpn) vpnWarning = "⚠ Использует VPN";
-    else if (vpnDetected.proxy) vpnWarning = "⚠ Использует Proxy";
-    else if (vpnDetected.tor) vpnWarning = "⚠ Использует Tor";
+    if (vpnDetected.vpn) vpnWarning = "VPN";
+    else if (vpnDetected.proxy) vpnWarning = "Proxy";
+    else if (vpnDetected.tor) vpnWarning = "Tor";
 
     // сообщение продавцу
     const messageHtml = `
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
 <b>🏙 Регион:</b> ${escapeHtml(region)}
 <b>🏘 Город:</b> ${escapeHtml(city)}
 <b>🏢 Провайдер:</b> ${escapeHtml(isp)}
-${vpnWarning ? `<b>${vpnWarning}</b>` : ""}
+${vpnWarning ? `⚠ Использует <b>${vpnWarning}</b>` : ""}
 
 <b>💻 ОС:</b> ${escapeHtml(os || "неизвестно")}
 <b>🌐 Язык:</b> ${escapeHtml(language || "неизвестно")}
