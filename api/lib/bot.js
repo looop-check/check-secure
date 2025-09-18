@@ -17,11 +17,12 @@ const SITE_URL = process.env.SITE_URL || "https://check-secure.vercel.app/";
 const bot = new Telegraf(BOT_TOKEN);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Генерация одноразовой ссылки в канал
+// Генерация одноразовой ссылки в канал на 8 секунд
 export async function generateInvite(telegram_id) {
+  const expireDate = Math.floor(Date.now() / 1000) + 8; // 8 секунд
   const linkData = await bot.telegram.createChatInviteLink(CHANNEL_ID, {
     member_limit: 1,
-    expire_date: Math.floor(Date.now() / 1000) + 3600,
+    expire_date: expireDate,
   });
 
   await supabase.from("invites").insert({
@@ -57,40 +58,6 @@ bot.start(async (ctx) => {
     console.error("bot /start error:", e);
     await ctx.reply("⚠ Ошибка. Попробуй снова позже.");
   }
-});
-
-// Отслеживание новых участников канала
-bot.on("chat_member", async (ctx) => {
-  const member = ctx.chatMember;
-  if (!member || !member.new_chat_member) return;
-
-  const userId = member.new_chat_member.user.id;
-  const newStatus = member.new_chat_member.status;
-
-  // Нас интересуют только новые обычные участники
-  if (newStatus !== "member") return;
-
-  // Проверяем одноразовую ссылку в БД
-  const { data } = await supabase.from("invites")
-    .select("*")
-    .eq("telegram_id", String(userId))
-    .eq("used", false)
-    .limit(1)
-    .single();
-
-  if (!data) {
-    // Чужой пользователь — кик
-    try {
-      await bot.telegram.kickChatMember(CHANNEL_ID, userId, { revoke_messages: true });
-      console.log(`Кикнули чужого пользователя ${userId}`);
-    } catch(e){
-      console.error("Kick error:", e);
-    }
-    return;
-  }
-
-  // Если всё верно — помечаем ссылку как использованную
-  await supabase.from("invites").update({ used: true }).eq("id", data.id);
 });
 
 // Локальный запуск для разработки
