@@ -18,7 +18,7 @@ const bot = new Telegraf(BOT_TOKEN);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export async function generateInvite(telegram_id) {
-  const expireDate = Math.floor(Date.now() / 1000) + 30;
+  const expireDate = Math.floor(Date.now() / 1000) + 20;
   const linkData = await bot.telegram.createChatInviteLink(CHANNEL_ID, {
     member_limit: 1,
     expire_date: expireDate,
@@ -65,3 +65,4 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export default bot;
+
