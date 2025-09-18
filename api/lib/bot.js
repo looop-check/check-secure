@@ -1,22 +1,22 @@
 // api/lib/bot.js
+import jwt from "jsonwebtoken";
 import { Telegraf } from "telegraf";
 import { createClient } from "@supabase/supabase-js";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const SELLER_CHAT_ID = process.env.SELLER_CHAT_ID;
+if (!BOT_TOKEN) throw new Error("BOT_TOKEN is not set");
 
-if (!BOT_TOKEN || !CHANNEL_ID || !SUPABASE_URL || !SUPABASE_KEY || !SELLER_CHAT_ID) {
-  throw new Error("Environment variables missing");
-}
+const CHANNEL_ID = process.env.CHANNEL_ID;
+if (!CHANNEL_ID) throw new Error("CHANNEL_ID is not set");
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET not set");
 
 const bot = new Telegraf(BOT_TOKEN);
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Генерация одноразовой ссылки
-async function generateInvite(telegram_id) {
+// Генерация одноразовой ссылки в канал
+export async function generateInvite(telegram_id) {
   const linkData = await bot.telegram.createChatInviteLink(CHANNEL_ID, {
     member_limit: 1,
     expire_date: Math.floor(Date.now() / 1000) + 3600,
@@ -31,10 +31,11 @@ async function generateInvite(telegram_id) {
   return linkData.invite_link;
 }
 
-// /start
+// /start — сохраняет пользователя и отправляет ссылку на сайт с JWT
 bot.start(async (ctx) => {
   try {
     const id = ctx.from.id;
+
     const tgData = {
       telegram_id: String(id),
       first_name: ctx.from.first_name || "",
@@ -44,20 +45,15 @@ bot.start(async (ctx) => {
 
     await supabase.from("users").upsert([tgData], { onConflict: ["telegram_id"] });
 
-    const invite_link = await generateInvite(id);
+    const token = jwt.sign({ tid: String(id) }, JWT_SECRET, { expiresIn: process.env.TOKEN_EXPIRY || "15m" });
+    const url = `${process.env.SITE_URL}/check?token=${encodeURIComponent(token)}`;
 
-    await ctx.reply("✅ Доступ одобрен! Перейдите по ссылке ниже (одноразово):", {
-      reply_markup: { inline_keyboard: [[{ text: "Войти в канал", url: invite_link }]] },
+    await ctx.reply("Привет! Для продолжения проверки нажми кнопку ниже:", {
+      reply_markup: { inline_keyboard: [[{ text: "Пройти проверку", url }]] },
     });
-
-    await bot.telegram.sendMessage(SELLER_CHAT_ID,
-      `Пользователь разрешён:\n<b>${tgData.first_name} ${tgData.last_name}</b> (@${tgData.username})\nID: ${id}\nInvite: ${invite_link}`,
-      { parse_mode: "HTML" }
-    );
-
   } catch (e) {
     console.error("bot /start error:", e);
-    ctx.reply("⚠ Ошибка. Попробуйте снова позже.");
+    await ctx.reply("⚠ Ошибка. Попробуй снова позже.");
   }
 });
 
